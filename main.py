@@ -78,6 +78,23 @@ def build_page(textarea_content):
         </form> """
     return page_header + form_signup + page_footer 
 
+def build_welcome(textarea_content):
+    page_header = """
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Welcome Page</title>
+            <style type="text/css"> 
+                .error {color: red;}
+            </style>
+        </head>
+        <body>
+            <h1>
+                Welcome, {{username}}!                
+            </h1> 
+        </body>
+    </html> """
+    return page_header 
 
 USERNAME_REGEX = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(username):
@@ -137,7 +154,7 @@ class Welcome(Basehandler):
         if valid_username(username):
             self.response.write(content, username=username)
         else:
-            self.response.write(content)
+            self.response.write(build_welcome)
 
 
 app = webapp2.WSGIApplication([
