@@ -15,13 +15,11 @@
 # limitations under the License.
 #
 import webapp2
-import cgi 
+import cgi
+import re
 
 
-
-      
-
-def build_page(textarea_content):
+def build_page(content):
     page_header = """
     <!DOCTYPE html>
     <html>
@@ -31,71 +29,22 @@ def build_page(textarea_content):
                 .error {color: red;}
             </style>
         </head>
-    <body>
-        <h1>
-                <a href="/">Signup Form</a>
-        </h1>  """
+    <body>  """
 
     # html boilerplate for the bottom of every page
     page_footer = """
         </body>
     </html> """
+    
+    return page_header + content + page_footer 
 
-    # html signin form 
-    form_signup = """
-        <form method="post">
-            <table>
-                <tr>
-                    <td><label for="username">Username</label></td>
-                    <td>
-                        <input name="username" type="text" value="" required>
-                        <span class="error"></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td><label for="password">Password</label></td>
-                    <td>
-                        <input name="password" type="password" required>
-                        <span class="error"></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td><label for="verify">Verify Password</label></td>
-                    <td>
-                        <input name="verify" type="password" required>
-                        <span class="error"></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td><label for="email">Email (optional)</label></td>
-                    <td>
-                        <input name="email" type="email" value="">
-                        <span class="error"></span>
-                    </td>
-                </tr>
-            </table>
-            <input type="submit">
-        </form> """
-    return page_header + form_signup + page_footer 
 
-def build_welcome(textarea_content):
-    page_header = """
-    <!DOCTYPE html>
-    <html>
-        <head>
-            <title>Welcome Page</title>
-            <style type="text/css"> 
-                .error {color: red;}
-            </style>
-        </head>
-        <body>
-            <h1>
-                Welcome, {{username}}!                
-            </h1> 
-        </body>
-    </html> """
-    return page_header 
+# global escape function
+def escapeHtml(input):
+    return cgi.escape(input, quote=True)
 
+
+# regular expressions
 USERNAME_REGEX = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(username):
     return username and USERNAME_REGEX.match(username)
@@ -111,54 +60,160 @@ def valid_email(email):
     return not email or EMAIL_REGEX.match(email)
 
 
+# Signup form
 class MainHandler(webapp2.RequestHandler):
-    def get(self):
-        content = build_page("")
-        self.response.write(content)
+    def get(self):        
+        error_username = ""
+        error_password = ""
+        error_verify = ""
+        error_email = ""
+        username = ""
+        email = ""
 
-    
+        form_signup = """
+        <h1>
+                <a href="/">Signup Form</a>
+        </h1>
+        <form method="post">
+            <table>
+                <tr>
+                    <td><label>Username</label></td>
+                    <td>
+                        <input name="username" type="text" value="%s" />
+                        <span class="error">%s</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label>Password</label></td>
+                    <td>
+                        <input name="password" type="password" />
+                        <span class="error">%s</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label>Verify Password</label></td>
+                    <td>
+                        <input name="verify" type="password" />
+                        <span class="error">%s</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td><label>Email (optional)</label></td>
+                    <td>
+                        <input name="email" type="email" value="%s"/>
+                        <span class="error">%s</span>
+                    </td>
+                </tr>
+            </table>
+            <input type="submit">
+        </form> 
+        """% (username, error_username, error_password, error_verify, email, error_email)
+
+        content = form_signup 
+        self.response.write(build_page(content))
+
+
     def post(self):
-        have_error = False
-        username = self.request.get('username')
-        password = self.request.get('password')
-        verify = self.request.get('werify')
-        email = self.request.get('email')
+        error_username = ""
+        error_password = ""
+        error_verify = ""
+        error_email = ""
+        username = ""
+        email = ""
 
-        # this stores the username and email so we can return it if there is an error
-        params = dict(username = username,
-                      email = email)
-       
-       if not valid_username(username):
-            params['error_username'] = "That's not a valid username."
+        have_error = False
+        username = escapeHtml(self.request.get("username"))
+        password = escapeHtml(self.request.get("password"))
+        verify = escapeHtml(self.request.get("verify"))
+        email = escapeHtml(self.request.get("email"))
+
+        
+
+        if not valid_username(username):
+            error_username = "Usernames must be betweet 3-20 characters long, and contain only letters and numbers"
             have_error = True
 
         if not valid_password(password):
-            params['error_password'] = "That wasn't a valid password."
+            error_password = "Passwords must be betweet 3-20 characters long"
             have_error = True
-        elif password != verify:
-            params['error_verify'] = "Your passwords didn't match."
+
+        if verify != password:
+            error_verify = "Passwords must match"
             have_error = True
 
         if not valid_email(email):
-            params['error_email'] = "That's not a valid email."
+            error_email = "Please enter a valid email"
             have_error = True
 
-        if have_error:
-            self.response.write(content, **params)
-        else:
-            self.redirect('/welcome?username=' + username)
+        if have_error == True:    
+            form_signup = """
+            <h1>
+                <a href="/">Signup Form</a>
+            </h1>
+            <form method="post">
+                <table>
+                    <tr>
+                      <td><label>Username</label></td>
+                      <td>
+                        <input name="username" type="text" value="%s" />
+                        <span class="error">%s</span>
+                     </td>
+                  </tr>
+                  <tr>
+                    <td><label>Password</label></td>
+                    <td>
+                        <input name="password" type="password" />
+                        <span class="error">%s</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><label>Verify Password</label></td>
+                    <td>
+                        <input name="verify" type="password" />
+                        <span class="error">%s</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><label>Email (optional)</label></td>
+                    <td>
+                        <input name="email" type="email" value="%s"/>
+                        <span class="error">%s</span>
+                    </td>
+                  </tr>
+              </table>
+            <input type="submit">
+          </form> 
+          """% (username, error_username, error_password, error_verify, email, error_email)
+            
+            content = form_signup
 
-class Welcome(Basehandler):
+            self.response.write(build_page(content))
+
+        else:
+            username_welcome = username
+            self.redirect("/welcome?username=%s" % username_welcome)
+
+
+# Welcome page for after succesful signup
+class WelcomeHandler(webapp2.RequestHandler):
     def get(self):
-        username = self.request.get('username'):
-        if valid_username(username):
-            self.response.write(content, username=username)
-        else:
-            self.response.write(build_welcome)
+        username_welcome = self.request.get("username")
+        escaped_username = escapeHtml(username_welcome)
 
+        content = """
+            <head>
+                <title>Welcome Page</title>
+            </head>
+            <body>
+                <h1>
+                    Welcome, """ + escaped_username + """!                
+                </h1> 
+            """
+        
+        self.response.write(build_page(content))
+    
 
 app = webapp2.WSGIApplication([
-    ('/', MainHandler),
-    ('/signup', Signup),
-    ('/welcome', Welcome),
-], debug=True)
+    ('/', MainHandler), 
+    ('/welcome', WelcomeHandler),
+    ], debug=True)
